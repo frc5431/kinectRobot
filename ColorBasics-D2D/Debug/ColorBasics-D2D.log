@@ -1,6 +1,6 @@
-﻿  ImageRenderer.cpp
-  Generating Code...
-  Compiling...
+﻿C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V120\Microsoft.CppBuild.targets(388,5): warning MSB8028: The intermediate directory (Debug\) contains files shared from another project (ColorBasics-D2D.vcxproj).  This can lead to incorrect clean and rebuild behavior.
   ColorBasics.cpp
   Generating Code...
-  ColorBasics-D2D.vcxproj -> C:\Users\Usaid\Documents\Kinect Samples\ColorBasics-D2D\Debug\ColorBasics-D2D.exe
+  Skipping... (no relevant changes detected)
+  ImageRenderer.cpp
+  ColorBasics-D2D.vcxproj -> C:\Users\Usaid\Documents\Kinect Samples\ColorBasics-D2D\Debug\kinectRobotv1.exe

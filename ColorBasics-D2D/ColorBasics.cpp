@@ -9,6 +9,9 @@
 #include "resource.h"
 #include "ColorBasics.h"
 
+//HANDLE hFile = CreateFileW(L"KinectScreenshot-Color.bmp", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+//FileStream imageStream(hFile);
+
 /// <summary>
 /// Entry point for the application
 /// </summary>
@@ -48,7 +51,16 @@ CColorBasics::CColorBasics() :
     m_pDrawColor(NULL),
     m_pColorRGBX(NULL)
 {
-	stringAddress = std::string(DEFAULT_ADDRESS);
+	//cimg_library::CImg<float> image("KinectScreenshot-Color.bmp");
+	//image.save("color.png");
+	//image.save("color.png");
+	//stringAddress = std::string(DEFAULT_ADDRESS);
+	Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+	GetEncoderClsid(L"image/jpeg", &encoderClsid);
+	
+	//hFile = CreateFileW(L"KinectScreenshot - Color.bmp", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	
+	// Return if error opening file
 
     LARGE_INTEGER qpf = {0};
     if (QueryPerformanceFrequency(&qpf))
@@ -98,7 +110,7 @@ CColorBasics::~CColorBasics()
     {
         m_pKinectSensor->Close();
     }
-
+	//CloseHandle(hFile);
     SafeRelease(m_pKinectSensor);
 	//WSACleanup();
 }
@@ -457,8 +469,40 @@ void CColorBasics::ProcessColor(INT64 nTime, RGBQUAD* pBuffer, int nWidth, int n
         m_pDrawColor->Draw(reinterpret_cast<BYTE*>(pBuffer), cColorWidth * cColorHeight * sizeof(RGBQUAD));
 
 		//stringBuffer = std::string(reinterpret_cast<char const*>(pBuffer));
-		socket.SendTo(stringAddress, DEFAULT_PORT, reinterpret_cast<const char*>(pBuffer), sizeof(buffer));
+		//socket.SendTo(stringAddress, DEFAULT_PORT, reinterpret_cast<const char*>(pBuffer), sizeof(buffer));
+		// Retrieve the path to My Photos
+		GetScreenshotFileName(screenshotPath, _countof(screenshotPath));
+
+		// Write out the bitmap to disk
+		hr = SaveBitmapToFile(reinterpret_cast<BYTE*>(pBuffer), nWidth, nHeight, sizeof(RGBQUAD) * 8, screenshotPath);
 		
+		if (FAILED(hr))
+		{
+			OutputDebugString(L"Failed to update Bitmap!");
+		}
+		
+		
+		
+		//newBitmap->operator new;
+		//newBitmap = Gdiplus::Bitmap::FromFile(L"KinectScreenshot-Color-Updated.bmp");
+		//Gdiplus::Bitmap* streamBitmap = Gdiplus::Bitmap::FromHBITMAP
+		//image.save("color.png");
+		//image.load("KinectScreenshot-Color.bmp");
+		//stat = newImage->Save(L"color.jpeg", &encoderClsid, NULL);
+		
+		//stat = newBitmap->SetResolution(xDPI, yDPI);
+		//newBitmap = ResizeClone(newBitmap, 640, 480);
+		//stat = newBitmap->Save(L"color.jpeg", &encoderClsid, NULL);
+		//newBitmap->operator delete;
+		//stat = 0; //Hacky ways - should just comment out the if below
+		/*
+		if (FAILED(stat))
+		{
+			OutputDebugString(L"Failed to save the .jpeg!");
+		}
+		*/
+		//std::system("cd / && cd Users && cd Usaid && cd Pictures && ffmpeg -y -f image2 -i KinectScreenshot-Color.bmp jpegName.jpeg");
+
         if (m_bSaveScreenshot)
         {
             WCHAR szScreenshotPath[MAX_PATH];
@@ -467,7 +511,7 @@ void CColorBasics::ProcessColor(INT64 nTime, RGBQUAD* pBuffer, int nWidth, int n
             GetScreenshotFileName(szScreenshotPath, _countof(szScreenshotPath));
 
             // Write out the bitmap to disk
-            HRESULT hr = SaveBitmapToFile(reinterpret_cast<BYTE*>(pBuffer), nWidth, nHeight, sizeof(RGBQUAD) * 8, szScreenshotPath);
+            hr = SaveBitmapToFile(reinterpret_cast<BYTE*>(pBuffer), nWidth, nHeight, sizeof(RGBQUAD) * 8, szScreenshotPath);
 
 
 			
@@ -476,6 +520,10 @@ void CColorBasics::ProcessColor(INT64 nTime, RGBQUAD* pBuffer, int nWidth, int n
             {
                 // Set the status bar to show where the screenshot was saved
                 StringCchPrintf(szStatusMessage, _countof(szStatusMessage), L"Screenshot saved to %s", szScreenshotPath);
+				std::system("cd / && cd Users && cd Usaid && cd Pictures && ffmpeg -y -f image2 -i KinectScreenshot-Color.bmp jpegName.jpeg");
+				//std::system("cd Users");
+				//std::system("cd Usaid");
+				//std::system("ffmpeg -y -f image2 -i bitmapName.bmp jpegName.jpeg");
             }
             else
             {
@@ -531,7 +579,7 @@ HRESULT CColorBasics::GetScreenshotFileName(_Out_writes_z_(nFilePathSize) LPWSTR
         GetTimeFormatEx(NULL, 0, NULL, L"hh'-'mm'-'ss", szTimeString, _countof(szTimeString));
 
         // File name will be KinectScreenshotColor-HH-MM-SS.bmp
-        StringCchPrintfW(lpszFilePath, nFilePathSize, L"%s\\KinectScreenshot-Color-%s.bmp", pszKnownPath, szTimeString);
+        StringCchPrintfW(lpszFilePath, nFilePathSize, L"Kinect.bmp", pszKnownPath);
     }
 
     if (pszKnownPath)
@@ -553,57 +601,62 @@ HRESULT CColorBasics::GetScreenshotFileName(_Out_writes_z_(nFilePathSize) LPWSTR
 /// <returns>indicates success or failure</returns>
 HRESULT CColorBasics::SaveBitmapToFile(BYTE* pBitmapBits, LONG lWidth, LONG lHeight, WORD wBitsPerPixel, LPCWSTR lpszFilePath)
 {
-    DWORD dwByteCount = lWidth * lHeight * (wBitsPerPixel / 8);
+	DWORD dwByteCount = lWidth * lHeight * (wBitsPerPixel / 8);
 
-    BITMAPINFOHEADER bmpInfoHeader = {0};
+	BITMAPINFOHEADER bmpInfoHeader = { 0 };
 
-    bmpInfoHeader.biSize        = sizeof(BITMAPINFOHEADER);  // Size of the header
-    bmpInfoHeader.biBitCount    = wBitsPerPixel;             // Bit count
-    bmpInfoHeader.biCompression = BI_RGB;                    // Standard RGB, no compression
-    bmpInfoHeader.biWidth       = lWidth;                    // Width in pixels
-    bmpInfoHeader.biHeight      = -lHeight;                  // Height in pixels, negative indicates it's stored right-side-up
-    bmpInfoHeader.biPlanes      = 1;                         // Default
-    bmpInfoHeader.biSizeImage   = dwByteCount;               // Image size in bytes
+	bmpInfoHeader.biSize = sizeof(BITMAPINFOHEADER);  // Size of the header
+	bmpInfoHeader.biBitCount = wBitsPerPixel;             // Bit count
+	bmpInfoHeader.biCompression = BI_RGB;                    // Standard RGB, no compression
+	bmpInfoHeader.biWidth = lWidth;                    // Width in pixels
+	bmpInfoHeader.biHeight = -lHeight;                  // Height in pixels, negative indicates it's stored right-side-up
+	bmpInfoHeader.biPlanes = 1;                         // Default
+	bmpInfoHeader.biSizeImage = dwByteCount;               // Image size in bytes
 
-    BITMAPFILEHEADER bfh = {0};
+	BITMAPFILEHEADER bfh = { 0 };
 
-    bfh.bfType    = 0x4D42;                                           // 'M''B', indicates bitmap
-    bfh.bfOffBits = bmpInfoHeader.biSize + sizeof(BITMAPFILEHEADER);  // Offset to the start of pixel data
-    bfh.bfSize    = bfh.bfOffBits + bmpInfoHeader.biSizeImage;        // Size of image + headers
+	bfh.bfType = 0x4D42;                                           // 'M''B', indicates bitmap
+	bfh.bfOffBits = bmpInfoHeader.biSize + sizeof(BITMAPFILEHEADER);  // Offset to the start of pixel data
+	bfh.bfSize = bfh.bfOffBits + bmpInfoHeader.biSizeImage;        // Size of image + headers
 
-    // Create the file on disk to write to
-    HANDLE hFile = CreateFileW(lpszFilePath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+																   // Create the file on disk to write to
+	hFile = CreateFileW(lpszFilePath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
-    // Return if error opening file
-    if (NULL == hFile) 
-    {
-        return E_ACCESSDENIED;
-    }
+	// Return if error opening file
+	if (NULL == hFile)
+	{
+		return E_ACCESSDENIED;
+	}
 
-    DWORD dwBytesWritten = 0;
-    
-    // Write the bitmap file header
-    if (!WriteFile(hFile, &bfh, sizeof(bfh), &dwBytesWritten, NULL))
-    {
-        CloseHandle(hFile);
-        return E_FAIL;
-    }
-    
-    // Write the bitmap info header
-    if (!WriteFile(hFile, &bmpInfoHeader, sizeof(bmpInfoHeader), &dwBytesWritten, NULL))
-    {
-        CloseHandle(hFile);
-        return E_FAIL;
-    }
-    
-    // Write the RGB Data
-    if (!WriteFile(hFile, pBitmapBits, bmpInfoHeader.biSizeImage, &dwBytesWritten, NULL))
-    {
-        CloseHandle(hFile);
-        return E_FAIL;
-    }    
+	DWORD dwBytesWritten = 0;
 
-    // Close the file
-    CloseHandle(hFile);
-    return S_OK;
+	// Write the bitmap file header
+	if (!WriteFile(hFile, &bfh, sizeof(bfh), &dwBytesWritten, NULL))
+	{
+		CloseHandle(hFile);
+		return E_FAIL;
+	}
+
+	// Write the bitmap info header
+	if (!WriteFile(hFile, &bmpInfoHeader, sizeof(bmpInfoHeader), &dwBytesWritten, NULL))
+	{
+		CloseHandle(hFile);
+		return E_FAIL;
+	}
+
+	// Write the RGB Data
+	if (!WriteFile(hFile, pBitmapBits, bmpInfoHeader.biSizeImage, &dwBytesWritten, NULL))
+	{
+		CloseHandle(hFile);
+		return E_FAIL;
+	}
+
+	// Close the file
+	CloseHandle(hFile);
+	oldBitmap = Gdiplus::Bitmap::FromFile(L"Kinect.bmp");
+	newBitmap = ResizeClone(oldBitmap, 640, 480);
+	newBitmap->Save(L"color.jpeg", &encoderClsid, NULL);
+	delete oldBitmap;
+	delete newBitmap;
+	return S_OK;
 }

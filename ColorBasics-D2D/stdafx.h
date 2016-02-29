@@ -23,6 +23,8 @@
 // Kinect Header files
 #include <Kinect.h>
 
+#include<gdiplus.h>
+
 #pragma comment (lib, "d2d1.lib")
 
 #ifdef _UNICODE

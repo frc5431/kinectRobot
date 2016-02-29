@@ -157,6 +157,7 @@ HRESULT ImageRenderer::Draw(BYTE* pImage, unsigned long cbImage)
 	OutputDebugString(L"\n");
 	*/
     // Draw the bitmap stretched to the size of the window
+	
     m_pRenderTarget->DrawBitmap(m_pBitmap);
             
     hr = m_pRenderTarget->EndDraw();
